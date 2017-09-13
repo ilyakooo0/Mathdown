@@ -3,7 +3,8 @@ A lightweight syntax for matrices.
 Outputs [MathML](https://en.wikipedia.org/wiki/MathML) format.
 
 ## Syntax
-```1 2 3
+```
+1 2 3
 3 2 8
 ```
 produces
