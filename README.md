@@ -16,7 +16,7 @@ You can also use [Markdown](https://en.wikipedia.org/wiki/Markdown)-style text e
 `***1*** 2 __3__
 3 _2_ 8`
 produces
-![](images/mat2.png | width=400)
+![](images/mat2.png width=400)
 
 ## Usage
 `mathdown -i input.mth -o output.xml`
