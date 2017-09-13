@@ -11,12 +11,15 @@ import Foundation
 enum BracketStyle {
     case square
     case round
+    case line
     var opening: Character {
         switch self {
         case .round:
             return "("
         case .square:
             return "["
+        case .line:
+            return "|"
         }
     }
     var closing: Character {
@@ -25,6 +28,8 @@ enum BracketStyle {
             return ")"
         case .square:
             return "]"
+        case .line:
+            return "|"
         }
     }
 }
@@ -60,6 +65,8 @@ default:
                 style = .square
             case "-r":
                 style = .round
+            case "-l":
+                style = .line
             default:
                 return
             }
@@ -96,34 +103,75 @@ extension String.SubSequence {
 func process(mth: String) -> String {
     let whitespace = CharacterSet.whitespaces
     
+    var seperated = false
+    var afterSeparator: [String.SubSequence] = []
+    
     var out = "<math>"
     let lines = mth.split(separator: "\n", omittingEmptySubsequences: false)
         .map {$0.trimmingCharacters(in: .whitespaces)}
     var insideMatrix = false
-    for line in lines {
+    func pureProcess(line: Substring) {
+        out.append("<mtr>")
+        for element in line.split(
+            whereSeparator: {c in whitespace.contains(c.unicodeScalars.first!)}) {
+                switch element {
+                case "_":
+                    out.append("<mtd><mspace height=\"0.8em\"/></mtd>")
+                default:
+                    let eStyle = element.style
+                    out.append("<mtd><mn mathvariant=\"\(eStyle.rawValue)\" height=\"0.8em\">\(element.trimmingStyleCharecters())</mn></mtd>")
+                }
+        }
+        out.append("</mtr>")
+    }
+    func checkInsideMatrix() {
+        if insideMatrix {
+            if seperated {
+                out.append("</mtable><mo>|</mo><mtable>")
+                for line in afterSeparator {
+                    pureProcess(line: line)
+                }
+            }
+            out.append("</mtable><mo>\(style.closing)</mo></mrow>")
+            insideMatrix = false
+            seperated = false
+            afterSeparator = []
+        }
+    }
+    func process(line: String.SubSequence) {
         switch line {
         case "":
-            if insideMatrix {
-                out.append("</mtable><mo>\(style.closing)</mo></mrow>")
-                insideMatrix = false
-            }
+            checkInsideMatrix()
         default:
             if !insideMatrix {
                 out.append("<mrow><mo>\(style.opening)</mo><mtable>")
                 insideMatrix = true
             }
-            out.append("<mtr>")
-            for element in line.split(
-                whereSeparator: {c in whitespace.contains(c.unicodeScalars.first!)}) {
-                    let eStyle = element.style
-                    out.append("<mtd><mn mathvariant=\"\(eStyle.rawValue)\">\(element.trimmingStyleCharecters())</mn></mtd>")
+            pureProcess(line: line)
+        }
+        
+    }
+    for line in lines {
+        if !insideMatrix {
+            if lines.first?.contains("|") == true {
+                seperated = true
             }
-            out.append("</mtr>")
+        }
+        if line == "" {
+            process(line: Substring(line))
+        } else if seperated {
+            let split = line.split(separator: "|", maxSplits: 1, omittingEmptySubsequences: false)
+            if split.count != 2 {
+                print("Inconsistent syntax")
+                exit(0)
+            }
+            process(line: split[0])
+            afterSeparator.append(split[1])
+        } else {
+            process(line: Substring(line))
         }
     }
-    if insideMatrix {
-        out.append("</mtable><mo>\(style.closing)</mo></mrow>")
-    }
+    checkInsideMatrix()
     out.append("</math>")
     return out
 }

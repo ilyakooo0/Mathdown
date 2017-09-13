@@ -16,9 +16,17 @@ You can also use [Markdown](https://en.wikipedia.org/wiki/Markdown)-style text e
 
 ```
 ***1*** 2 __3__
-3 _2_ 8
+   3   _2_  8
 ```
 ![](images/mat2.png)
+
+You can use `_` to leave an empty space in the matrix
+
+```
+***1*** 2 __3__ | _
+   _   _2_  8   | 4
+```
+![](images/mat3.png)
 
 ## Usage
 `mathdown -r -i input.mth -o output.xml`
@@ -28,3 +36,4 @@ You can also use [Markdown](https://en.wikipedia.org/wiki/Markdown)-style text e
 - `-o <file path>` Specifies the output pathfile
 - `-s` Uses square brackets
 - `-r` Uses round brackets
+- `-l` Uses line brackets
