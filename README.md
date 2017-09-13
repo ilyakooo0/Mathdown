@@ -6,7 +6,7 @@ Outputs [MathML](https://en.wikipedia.org/wiki/MathML) format.
 `1 2 3
 3 2 8`
 produces
-![](images/mat1.png)
+![](images/mat1.png | width=400)
 
 You can also use [Markdown](https://en.wikipedia.org/wiki/Markdown)-style text emphasis
 - `_<text>_` or `*<text>*` for _italic_
@@ -16,7 +16,7 @@ You can also use [Markdown](https://en.wikipedia.org/wiki/Markdown)-style text e
 `***1*** 2 __3__
 3 _2_ 8`
 produces
-![](imgeas/mat2.png)
+![](images/mat2.png | width=400)
 
 ## Usage
 `mathdown -i input.mth -o output.xml`
