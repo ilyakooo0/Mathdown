@@ -8,6 +8,12 @@
 
 import Foundation
 
+typealias Lines = [String]
+typealias Element = [String]
+let commentChars = CharacterSet.init(charactersIn: "#/")
+let styleCharecters = CharacterSet.init(charactersIn: "_*")
+
+
 enum BracketStyle {
     case square
     case round
@@ -61,11 +67,11 @@ default:
                 if let surl = args.popFirst() {
                     outputUrl = URL(fileURLWithPath: surl)
                 }
-            case "-s":
+            case "-b:s":
                 style = .square
-            case "-r":
+            case "-b:r":
                 style = .round
-            case "-l":
+            case "-b:l":
                 style = .line
             default:
                 return
@@ -81,7 +87,6 @@ enum ElementStyle: String {
     case italic = "italic"
     case boldItalic = "bold-italic"
 }
-let styleCharecters = CharacterSet.init(charactersIn: "_*")
 extension String.SubSequence {
     var style: ElementStyle {
         let num = self.prefix(while: {styleCharecters.contains($0.unicodeScalars.first!)}).count
@@ -100,20 +105,55 @@ extension String.SubSequence {
         return self.trimmingCharacters(in: styleCharecters)
     }
 }
-func process(mth: String) -> String {
-    let whitespace = CharacterSet.whitespaces
+
+func process(element: Element) -> String {
+    var out = ""
     
+    var inMatrix = false
+    var first = false
     var seperated = false
-    var afterSeparator: [String.SubSequence] = []
+    var afterSeparator: [Substring] = []
     
-    var out = "<math>"
-    let lines = mth.split(separator: "\n", omittingEmptySubsequences: false)
-        .map {$0.trimmingCharacters(in: .whitespaces)}
-    var insideMatrix = false
-    func pureProcess(line: Substring) {
+    var small = false
+    
+    let arrows = CharacterSet.init(charactersIn: "⟺⟷⟼⟻⟶⟹⟵⟸")
+    
+    let nEl = element.map { (el) -> String in
+        switch el {
+        case let l where l.last == ">" && l.first == "<" && l.dropLast().dropFirst().filter({$0 == "="}).count > 0:
+            small = true
+            return "⟺"
+        case let l where l.last == ">" && l.first == "<" && l.dropLast().dropFirst().filter({$0 == "-"}).count > 0:
+            small = true
+            return "⟷"
+        case let l where l.last == ">" && l.first == "|" && l.dropLast().dropFirst().filter({$0 == "-"}).count > 0:
+            small = true
+            return "⟼"
+        case let l where l.last == "|" && l.first == "<" && l.dropLast().dropFirst().filter({$0 == "-"}).count > 0:
+            small = true
+            return "⟻"
+        case let l where l.last == ">" && l.dropLast().filter({$0 == "-"}).count > 0:
+            small = true
+            return "⟶"
+        case let l where l.last == ">" && l.dropLast().filter({$0 == "="}).count > 0:
+            small = true
+            return "⟹"
+        case let l where l.first == "<" && l.dropFirst().filter({$0 == "-"}).count > 0:
+            small = true
+            return "⟵"
+        case let l where l.first == "<" && l.dropFirst().filter({$0 == "="}).count > 0:
+            small = true
+            return "⟸"
+        default:
+            return el
+        }
+    }
+    
+    
+    func process(line: Substring) {
         out.append("<mtr>")
         for element in line.split(
-            whereSeparator: {c in whitespace.contains(c.unicodeScalars.first!)}) {
+            whereSeparator: {c in CharacterSet.whitespaces.contains(c.unicodeScalars.first!)}) {
                 switch element {
                 case "_":
                     out.append("<mtd><mspace height=\"0.8em\"/></mtd>")
@@ -124,55 +164,99 @@ func process(mth: String) -> String {
         }
         out.append("</mtr>")
     }
-    func checkInsideMatrix() {
-        if insideMatrix {
-            if seperated {
-                out.append("</mtable><mo>|</mo><mtable>")
-                for line in afterSeparator {
-                    pureProcess(line: line)
-                }
-            }
-            out.append("</mtable><mo>\(style.closing)</mo></mrow>")
-            insideMatrix = false
-            seperated = false
-            afterSeparator = []
+    func process(comment: String) {
+        if comment.hasPrefix("#") {
+            out.append("<!-- \(comment.trimmingCharacters(in: commentChars).trimmingCharacters(in: .whitespaces)) -->")
         }
     }
-    func process(line: String.SubSequence) {
-        switch line {
-        case "":
-            checkInsideMatrix()
-        default:
-            if !insideMatrix {
-                out.append("<mrow><mo>\(style.opening)</mo><mtable>")
-                insideMatrix = true
-            }
-            pureProcess(line: line)
-        }
-        
-    }
-    for line in lines {
-        if !insideMatrix {
-            if lines.first?.contains("|") == true {
+
+    for line in nEl {
+        if inMatrix {
+            if first && line.contains("|") {
                 seperated = true
             }
-        }
-        if line == "" {
-            process(line: Substring(line))
-        } else if seperated {
-            let split = line.split(separator: "|", maxSplits: 1, omittingEmptySubsequences: false)
-            if split.count != 2 {
-                print("Inconsistent syntax")
-                exit(0)
+            switch line {
+            case "]":
+                if seperated {
+                    out.append("</mtable><mo stretchy=\"true\">|</mo><mtable>")
+                    for line in afterSeparator {
+                        process(line: line)
+                    }
+                }
+                out.append("</mtable><mo stretchy=\"true\">\(style.closing)</mo></mrow></mtd></mtr>")
+                inMatrix = false
+                seperated = false
+                afterSeparator = []
+            default:
+                if seperated {
+                    let split = line.split(separator: "|", maxSplits: 1, omittingEmptySubsequences: false)
+                    if split.count != 2 {
+                        print("Inconsistent syntax. The `|` seperator isn't consistent within a matrix.")
+                        exit(0)
+                    }
+                    process(line: split[0])
+                    afterSeparator.append(split[1])
+                } else {
+                    process(line: Substring(line))
+                }
             }
-            process(line: split[0])
-            afterSeparator.append(split[1])
         } else {
-            process(line: Substring(line))
+            switch line {
+            case let l where l.hasPrefix("//"):
+                break
+            case let l where l.hasPrefix("#"):
+                out.append("</mtable></math>\n\n")
+                process(comment: l)
+                out.append("\n\n<math><mtable>")
+                break // TODO: Figure out what to do
+            case "[":
+                if !inMatrix {
+                    out.append("<mtr><mtd><mrow><mo stretchy=\"true\">\(style.opening)</mo><mtable>")
+                    inMatrix = true
+                    first = true
+                    continue
+                } else {
+                    print("Inconsistent syntax. Opening a matrix from within a matrix.")
+                    exit(0)
+                }
+            case "":
+                if !first {
+                    out.append("</mtable><mtable>")
+                }
+                first = true
+                continue
+            case let l where arrows.contains(l.first!.unicodeScalars.first!):
+                out.append("<mtr><mtd><mo>\(line)</mo></mtd></mtr>")
+            default:
+                out.append("<mtr><mtd>\(small ? "<mstyle scriptlevel=\"1\">" : "")<mo>\(line)</mo>\(small ? "</mstyle>" : "")</mtd></mtr>")
+            }
         }
+        first = false
     }
-    checkInsideMatrix()
-    out.append("</math>")
+    return out
+}
+
+func process(mth: String) -> String {
+    let elements = mth
+        .split(separator: "\n", omittingEmptySubsequences: false)
+        .map({$0.trimmingCharacters(in: .whitespaces)})
+        .map({ l in
+            var i = l.startIndex
+            for u in 0..<max(0, l.count - 1) {
+                if l[i] == "/" && l[l.index(after: i)] == "/" {
+                    return String(l.dropLast(l.count - u))
+                }
+                i = l.index(after: i)
+            }
+            return l
+        })
+        .split(separator: "")
+    var out = "<math><mtable>"
+    for el in elements {
+        out.append(process(element: Array(el)))
+        out.append("</mtable><mtable>")
+    }
+    out.append("</mtable></math>")
     return out
 }
 
