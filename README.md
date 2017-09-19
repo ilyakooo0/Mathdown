@@ -56,7 +56,7 @@ a=2b
 ```
 ![](images/mat4.png)
 
-`#` is used to make a `separator` comment. It separates your expressions into dedfferent `<math>` elements and is converted to an `xml` comment in the output document.
+`#` is used to make a `separator` comment. It separates your expressions into different `<math>` elements and is converted to an `xml` comment in the output document.
 
 ## Usage
 `mathdown -b:r -i input.mth -o output.xml`

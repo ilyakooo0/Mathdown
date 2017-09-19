@@ -210,15 +210,10 @@ func process(element: Element) -> String {
                 out.append("\n\n<math><mtable>")
                 break // TODO: Figure out what to do
             case "[":
-                if !inMatrix {
-                    out.append("<mtr><mtd><mrow><mo stretchy=\"true\">\(style.opening)</mo><mtable>")
-                    inMatrix = true
-                    first = true
-                    continue
-                } else {
-                    print("Inconsistent syntax. Opening a matrix from within a matrix.")
-                    exit(0)
-                }
+                out.append("<mtr><mtd><mrow><mo stretchy=\"true\">\(style.opening)</mo><mtable>")
+                inMatrix = true
+                first = true
+                continue
             case "":
                 if !first {
                     out.append("</mtable><mtable>")
