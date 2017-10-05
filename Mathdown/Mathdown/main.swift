@@ -149,7 +149,63 @@ func process(element: Element) -> String {
         }
     }
     
-    
+    func process(lineElement: Substring, withAttributes attributes: String = "", style: ElementStyle = .none) -> Substring {
+        func extractNextElement(from line: Substring) -> (element: Substring, left: Substring) {
+            if line.first != "(" {
+                var i = line.startIndex
+                var el: Substring = ""
+                while i < line.endIndex && CharacterSet.alphanumerics.contains(line[i].unicodeScalars.first!) {
+                    el.append(line[i])
+                    i = line.index(after: i)
+                }
+                return (el, line[i...])
+            } else {
+                var brackets = 0
+                var i = line.startIndex
+                var el: Substring = ""
+                while i < line.endIndex {
+                    switch el[i] {
+                    case "(":
+                        brackets += 1
+                    case ")":
+                        brackets -= 1
+                    default:
+                        break
+                    }
+                    i = line.index(after: i)
+                    if brackets == 0 {
+                        break
+                    }
+                    el.append(el[i])
+                }
+                if brackets != 0 {
+                    print("Mismatched brackets")
+                    exit(0)
+                }
+                return (el.dropFirst(), line[i...])
+            }
+        }
+        var i = lineElement.startIndex
+        while i < lineElement.endIndex {
+            switch lineElement[i] {
+            case "^":
+                let parts = extractNextElement(from: lineElement[lineElement.index(after: i)...])
+                return "<mo mathvariant=\"\(style.rawValue)\" \(attributes)>\(lineElement[..<i].filter({$0 != "\\"}))</mo>" + "<msup><mo></mo><mn>\(parts.element)</mn></msup>" + process(lineElement: parts.left, withAttributes: attributes, style: style)
+            case "!":
+                let parts = extractNextElement(from: lineElement[lineElement.index(after: i)...])
+                return "<mo mathvariant=\"\(style.rawValue)\" \(attributes)>\(lineElement[..<i].filter({$0 != "\\"}))</mo>" + "<mover accent=\"true\"><mrow><mo>\(parts.element)</mo></mrow><mo>_</mo></mover>" + process(lineElement: parts.left, withAttributes: attributes, style: style)
+            case "\\":
+                i = lineElement.index(after: i)
+            case "/":
+                let parts = extractNextElement(from: lineElement[lineElement.index(after: i)...])
+                return "<mo mathvariant=\"\(style.rawValue)\" \(attributes)>\(lineElement[..<i].filter({$0 != "\\"}))</mo>" + "<msub><mo></mo><mn>\(parts.element)</mn></msub>" + process(lineElement: parts.left, withAttributes: attributes, style: style)
+            default:
+                break
+            }
+            i = lineElement.index(after: i)
+        }
+        return Substring("<mo mathvariant=\"\(style.rawValue)\" \(attributes)>\(lineElement.filter({$0 != "\\"}))</mo>")
+    }
     func process(line: Substring) {
         out.append("<mtr>")
         for element in line.split(
@@ -159,7 +215,7 @@ func process(element: Element) -> String {
                     out.append("<mtd><mspace height=\"0.8em\"/></mtd>")
                 default:
                     let eStyle = element.style
-                    out.append("<mtd><mn mathvariant=\"\(eStyle.rawValue)\" height=\"0.8em\">\(element.trimmingStyleCharecters())</mn></mtd>")
+                    out.append("<mtd>\(process(lineElement: Substring(element.trimmingStyleCharecters()), withAttributes: "height=\"0.8em\"", style: eStyle))</mtd>")
                 }
         }
         out.append("</mtr>")
@@ -223,7 +279,7 @@ func process(element: Element) -> String {
             case let l where arrows.contains(l.first!.unicodeScalars.first!):
                 out.append("<mtr><mtd><mo>\(line)</mo></mtd></mtr>")
             default:
-                out.append("<mtr><mtd>\(small ? "<mstyle scriptlevel=\"1\">" : "")<mo>\(line)</mo>\(small ? "</mstyle>" : "")</mtd></mtr>")
+                out.append("<mtr><mtd>\(small ? "<mstyle scriptlevel=\"1\">" : "")\(process(lineElement: Substring(line)))\(small ? "</mstyle>" : "")</mtd></mtr>")
             }
         }
         first = false
